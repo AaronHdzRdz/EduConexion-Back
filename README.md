@@ -10,6 +10,13 @@ Backend básico implementado con Go, usando el ORM GORM y una base de datos Post
 * [Docker Compose](https://docs.docker.com/compose/) instalado.
 * Go (opcional, para desarrollo local sin Docker).
 
+## Clonar el proyecto
+
+```bash
+git clone https://github.com/AaronHdzRdz/EduConexion-Back.git
+cd EduConexion-Back/EDUCONEXION
+```
+
 ## Servicios Disponibles
 
 ### Base de datos
@@ -39,6 +46,7 @@ Backend básico implementado con Go, usando el ORM GORM y una base de datos Post
 Construye las imágenes y ejecuta los contenedores con el siguiente comando:
 
 ```bash
+cd EDUCONEXION
 docker-compose up --build -d
 ```
 
