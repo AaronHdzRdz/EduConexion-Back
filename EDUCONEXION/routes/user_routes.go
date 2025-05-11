@@ -1,21 +1,39 @@
 package routes
 
 import (
+    "net/http"
+
+    "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
     "gorm/handlers"
 )
 
 func SetupUserRoutes(r *gin.Engine, h *handlers.UserHandler) {
-    // Grupo de rutas para CRUD de usuarios
+    // 1) CORS middleware para aceptar preflights
+    r.Use(cors.New(cors.Config{
+        AllowOrigins:     []string{"*"},
+        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+        ExposeHeaders:    []string{"Content-Length"},
+        AllowCredentials: true,
+    }))
+
+    // 2) Grupo de rutas CRUD para /users (incluye OPTIONS)
     grp := r.Group("/users")
     {
-        grp.POST("", h.Create)        // Crear usuario
-        grp.GET("", h.List)           // Listar todos
-        grp.GET("/:id", h.Get)        // Obtener por ID
-        grp.PUT("/:id", h.Update)     // Actualizar usuario
-        grp.DELETE("/:id", h.Delete)  // Eliminar usuario
+        grp.OPTIONS("", func(c *gin.Context) {
+            c.Status(http.StatusOK)
+        })
+        grp.POST("", h.Create)
+        grp.GET("", h.List)
+        grp.GET("/:id", h.Get)
+        grp.PUT("/:id", h.Update)
+        grp.DELETE("/:id", h.Delete)
     }
 
-    // Ruta de login (autenticación)
+    // 3) Rutas de login y su preflight
+    r.OPTIONS("/login", func(c *gin.Context) {
+        c.Status(http.StatusOK)
+    })
     r.POST("/login", h.Login)
 }

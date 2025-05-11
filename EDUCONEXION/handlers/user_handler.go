@@ -1,20 +1,23 @@
 package handlers
 
 import (
-    "net/http"
-    "strconv"
+	"net/http"
+	"strconv"
+	"time"
 
-    "github.com/gin-gonic/gin"
-    "gorm/models"
-    "gorm/services"
+	"gorm/models"
+	"gorm/services"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 )
 
 type UserHandler struct {
-    svc *services.UserService
+    svc       *services.UserService
+    jwtSecret string
 }
-
-func NewUserHandler(svc *services.UserService) *UserHandler {
-    return &UserHandler{svc: svc}
+func NewUserHandler(svc *services.UserService, jwtSecret string) *UserHandler {
+    return &UserHandler{svc: svc, jwtSecret: jwtSecret}
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
@@ -112,29 +115,52 @@ func (h *UserHandler) Delete(c *gin.Context) {
  }
  
  
+
+
+
 // POST /login
 func (h *UserHandler) Login(c *gin.Context) {
-    var cred struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
-    }
-    if err := c.ShouldBindJSON(&cred); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "payload inválido"})
-        return
-    }
+	var cred struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&cred); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "payload inválido"})
+		return
+	}
 
-    // 1) Busca el usuario por email
-    u, err := h.svc.GetByEmail(cred.Email)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"})
-        return
-    }
-    // 2) Comprueba que exista y que la contraseña coincida
-    if u == nil || u.Password != cred.Password {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "credenciales incorrectas"})
-        return
-    }
+	// 1) Busca el usuario
+	u, err := h.svc.GetByEmail(cred.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error interno"})
+		return
+	}
+	if u == nil || u.Password != cred.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "credenciales incorrectas"})
+		return
+	}
 
-    // 3) Autenticación exitosa
-    c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	// 2) Genera el JWT
+	claims := jwt.MapClaims{
+		"sub":   u.ID,
+		"email": u.Email,
+		"exp":   time.Now().Add(24 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(h.jwtSecret))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "no se pudo firmar el token"})
+		return
+	}
+
+	// 3) Devuelve token + usuario
+	c.JSON(http.StatusOK, gin.H{
+		"token": tokenString,
+		"user": gin.H{
+			"id":    u.ID,
+			"name":  u.Name,
+			"email": u.Email,
+		},
+	})
 }

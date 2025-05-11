@@ -27,6 +27,8 @@ services:
       DB_NAME: EduConexion
     depends_on:
       - database
+    env_file:
+      - .env
 
 volumes:
   postgres_data:

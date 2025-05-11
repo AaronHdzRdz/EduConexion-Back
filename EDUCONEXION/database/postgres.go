@@ -6,6 +6,8 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
 // Database envuelve la conexión GORM
@@ -27,10 +29,23 @@ func NewDatabase() (*Database, error) {
 		host, user, pass, name, port,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		// 1) Tables singulares: usa "user" en vez de "users", etc.
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
+		// 2) Habilita logging para ver las queries en consola
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error abriendo la base de datos: %w", err)
 	}
+
+	// 3) Si quieres migrar aquí mismo tus modelos (opcional)
+	// import "tu_modulo/models"
+	// if err := db.AutoMigrate(&models.User{}, &models.Materia{}, &models.Alumno{}); err != nil {
+	//     return nil, fmt.Errorf("error en migraciones: %w", err)
+	// }
 
 	return &Database{DB: db}, nil
 }
