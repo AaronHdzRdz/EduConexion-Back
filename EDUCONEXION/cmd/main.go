@@ -32,8 +32,13 @@ func main() {
 	}
 	fmt.Println("✅ Conectado a Postgres")
 
-	// 4) Auto-migraciones
-	if err := dbConn.DB.AutoMigrate(&models.User{}); err != nil {
+	// 4) Auto-migraciones de todos los modelos
+	if err := dbConn.DB.AutoMigrate(
+		&models.User{},
+		&models.Student{},
+		//&models.Subject{},
+		//&models.Grade{},
+	); err != nil {
 		log.Fatalf("❌ Migración fallida: %v", err)
 	}
 
@@ -46,22 +51,32 @@ func main() {
 	})
 
 	// 7) Inicializa servicios y handlers
-	userSvc := services.NewUserService(dbConn.DB)
 
-	// 7a) Obtén el secreto JWT directamente del entorno
+	// Usuarios
+	userSvc := services.NewUserService(dbConn.DB)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET no configurado")
 	}
-
-	// 7b) Pasa el secreto al handler
 	userH := handlers.NewUserHandler(userSvc, jwtSecret)
-
-	// 8) Registra tus rutas
 	routes.SetupUserRoutes(r, userH)
-	// Agrega SetupStudentRoutes, SetupSubjectRoutes, SetupGradeRoutes, etc.
 
-	// 9) Arranca el servidor en todas las interfaces
+	// Estudiantes
+	studentSvc := services.NewStudentService(dbConn.DB)
+	studentH := handlers.NewStudentHandler(studentSvc)
+	routes.SetupStudentRoutes(r, studentH)
+
+	// Materias
+	// subjectSvc := services.NewSubjectService(dbConn.DB)
+	// subjectH := handlers.NewSubjectHandler(subjectSvc)
+	// routes.SetupSubjectRoutes(r, subjectH)
+
+	// Calificaciones
+	// gradeSvc := services.NewGradeService(dbConn.DB)
+	// gradeH := handlers.NewGradeHandler(gradeSvc)
+	// routes.SetupGradeRoutes(r, gradeH)
+
+	// 8) Arranca el servidor en todas las interfaces
 	addr := "0.0.0.0:" + cfg.ServerPort
 	log.Printf("Servidor escuchando en %s (todas las interfaces)", addr)
 	log.Fatal(r.Run(addr))
