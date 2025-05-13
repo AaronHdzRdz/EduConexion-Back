@@ -68,3 +68,9 @@ func (s *StudentService) Search(query string) ([]models.Student, error) {
 		return students, err
 	}
 }
+
+func (s *StudentService) GetAllByUser(userID uint) ([]models.Student, error) {
+  var list []models.Student
+  err := s.db.Where("user_id = ?", userID).Find(&list).Error
+  return list, err
+}

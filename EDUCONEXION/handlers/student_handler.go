@@ -17,32 +17,6 @@ func NewStudentHandler(svc *services.StudentService) *StudentHandler {
     return &StudentHandler{svc: svc}
 }
 
-func (h *StudentHandler) Create(c *gin.Context) {
-    var input models.Student
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
-    if err := h.svc.Create(&input); err != nil {
-        if err.Error() == "el correo electrónico ya está en uso" {
-            c.JSON(http.StatusConflict, gin.H{"error": err.Error()}) // Devuelve 409 Conflict
-            return
-        }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-    c.JSON(http.StatusCreated, input)
-}
-
-func (h *StudentHandler) List(c *gin.Context) {
-    list, err := h.svc.GetAll()
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-    c.JSON(http.StatusOK, list)
-}
-
 func (h *StudentHandler) Get(c *gin.Context) {
     id, err := strconv.ParseUint(c.Param("student_id"), 10, 32)
     if err != nil {
@@ -110,4 +84,31 @@ func (h *StudentHandler) Search(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, students)
+}
+
+func (h *StudentHandler) Create(c *gin.Context) {
+  var input models.Student
+  if err := c.ShouldBindJSON(&input); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+  }
+  // extrae userID
+  uid, _ := c.Get("userID")
+  input.UserID = uid.(uint)
+
+  if err := h.svc.Create(&input); err != nil {
+    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+  }
+  c.JSON(http.StatusCreated, input)
+}
+
+func (h *StudentHandler) List(c *gin.Context) {
+  uid, _ := c.Get("userID")
+  students, err := h.svc.GetAllByUser(uid.(uint))
+  if err != nil {
+    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+  }
+  c.JSON(http.StatusOK, students)
 }

@@ -11,6 +11,7 @@ import (
 	"gorm/config"
 	"gorm/database"
 	"gorm/handlers"
+	"gorm/middleware"
 	"gorm/models"
 	"gorm/routes"
 	"gorm/services"
@@ -32,12 +33,10 @@ func main() {
 	}
 	fmt.Println("✅ Conectado a Postgres")
 
-	// 4) Auto-migraciones de todos los modelos
+	// 4) Auto-migraciones de los modelos
 	if err := dbConn.DB.AutoMigrate(
 		&models.User{},
 		&models.Student{},
-		//&models.Subject{},
-		//&models.Grade{},
 	); err != nil {
 		log.Fatalf("❌ Migración fallida: %v", err)
 	}
@@ -52,7 +51,7 @@ func main() {
 
 	// 7) Inicializa servicios y handlers
 
-	// Usuarios
+	// Usuarios /auth (login, signup)
 	userSvc := services.NewUserService(dbConn.DB)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -61,22 +60,17 @@ func main() {
 	userH := handlers.NewUserHandler(userSvc, jwtSecret)
 	routes.SetupUserRoutes(r, userH)
 
-	// Estudiantes
+	// 8) Grupo protegido con JWT
+	authMw := middleware.AuthJWT(jwtSecret)
+	api := r.Group("/api")
+	api.Use(authMw)
+
+	// Rutas de students bajo /api/students
 	studentSvc := services.NewStudentService(dbConn.DB)
 	studentH := handlers.NewStudentHandler(studentSvc)
-	routes.SetupStudentRoutes(r, studentH)
+	routes.SetupStudentRoutes(api, studentH)
 
-	// Materias
-	// subjectSvc := services.NewSubjectService(dbConn.DB)
-	// subjectH := handlers.NewSubjectHandler(subjectSvc)
-	// routes.SetupSubjectRoutes(r, subjectH)
-
-	// Calificaciones
-	// gradeSvc := services.NewGradeService(dbConn.DB)
-	// gradeH := handlers.NewGradeHandler(gradeSvc)
-	// routes.SetupGradeRoutes(r, gradeH)
-
-	// 8) Arranca el servidor en todas las interfaces
+	// 9) Arranca el servidor en todas las interfaces
 	addr := "0.0.0.0:" + cfg.ServerPort
 	log.Printf("Servidor escuchando en %s (todas las interfaces)", addr)
 	log.Fatal(r.Run(addr))
