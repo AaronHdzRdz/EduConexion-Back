@@ -23,7 +23,7 @@ func main() {
 		log.Println("⚠️ .env no encontrado, usando vars de entorno")
 	}
 
-	// 2) Carga configuración (solo ServerPort)
+	// 2) Carga configuración (ServerPort)
 	cfg := config.Load()
 
 	// 3) Conecta a la base de datos
@@ -37,6 +37,7 @@ func main() {
 	if err := dbConn.DB.AutoMigrate(
 		&models.User{},
 		&models.Student{},
+		&models.Subject{},
 	); err != nil {
 		log.Fatalf("❌ Migración fallida: %v", err)
 	}
@@ -49,9 +50,7 @@ func main() {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	// 7) Inicializa servicios y handlers
-
-	// Usuarios /auth (login, signup)
+	// 7) Usuarios /auth (login/signup)
 	userSvc := services.NewUserService(dbConn.DB)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -65,12 +64,22 @@ func main() {
 	api := r.Group("/api")
 	api.Use(authMw)
 
-	// Rutas de students bajo /api/students
+	// 9) Students CRUD
 	studentSvc := services.NewStudentService(dbConn.DB)
 	studentH := handlers.NewStudentHandler(studentSvc)
 	routes.SetupStudentRoutes(api, studentH)
 
-	// 9) Arranca el servidor en todas las interfaces
+	// 10) Subjects CRUD
+	subjectSvc := services.NewSubjectService(dbConn.DB)
+	subjectH := handlers.NewSubjectHandler(subjectSvc)
+	routes.SetupSubjectRoutes(api, subjectH)
+
+	// 11) (Opcional) Grades CRUD
+	// gradeSvc := services.NewGradeService(dbConn.DB)
+	// gradeH := handlers.NewGradeHandler(gradeSvc)
+	// routes.SetupGradeRoutes(api, gradeH)
+
+	// 12) Arranca el servidor en todas las interfaces
 	addr := "0.0.0.0:" + cfg.ServerPort
 	log.Printf("Servidor escuchando en %s (todas las interfaces)", addr)
 	log.Fatal(r.Run(addr))
